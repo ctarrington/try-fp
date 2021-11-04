@@ -10,3 +10,7 @@ let foo c =
 
 let () = Printf.printf "foo %d\n" (foo 4)
 
+let rec fact (n: int64) : int64 = if n = 0L then 1L else Int64.mul n (fact (Int64.sub n 1L))
+
+let () = print_string (Int64.to_string (fact 25L))
+

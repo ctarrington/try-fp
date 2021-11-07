@@ -2,15 +2,18 @@
 // https://rust-unofficial.github.io/too-many-lists/first.html
 use std::mem;
 
+// something small to expose publicly
 pub struct List {
     head: Link,
 }
 
+// something to hold the variation
 enum Link {
     None,
     Some(Box<Node>),
 }
 
+// the crux of the thing
 struct Node {
     element: i32,
     next: Link,

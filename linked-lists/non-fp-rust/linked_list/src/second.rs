@@ -29,6 +29,17 @@ impl<T> List<T> {
         self.head = Some(boxed_node);
     }
 
+    pub fn peek_for_nosy_people(&self) -> Option<&T> {
+        // not idiomatic rust, but look what map and the magic dot in node.element did for us!
+        // Levels of indirection just vanish!
+        let boxed_node_option: Option<&Box<Node<T>>> = self.head.as_ref();
+        boxed_node_option.map(|boxed_node: &Box<Node<T>>| &boxed_node.element)
+    }
+
+    pub fn peek(&self) -> Option<&T> {
+        self.head.as_ref().map(|boxed_node| &boxed_node.element)
+    }
+
     pub fn pop(&mut self) -> Option<T> {
         let popped_link = self.head.take();
 
@@ -56,9 +67,14 @@ mod test {
     fn simple() {
         let mut list = List::new(); // head -> None
         assert_eq!(list.pop().is_none(), true);
+        assert_eq!(list.peek().is_none(), true);
+        assert_eq!(list.peek_for_nosy_people().is_none(), true);
         list.push(1); // head -> Some(1, None)
         list.push(2); // head -> Some(2, Some(1, None))
         list.push(3);
+
+        assert_eq!(list.peek().unwrap(), &3);
+        assert_eq!(list.peek_for_nosy_people().unwrap(), &3);
         assert_eq!(list.pop().unwrap(), 3);
         assert_eq!(list.pop().unwrap(), 2);
         list.push(4);

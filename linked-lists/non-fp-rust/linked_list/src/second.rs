@@ -6,6 +6,17 @@ pub struct List<T> {
     head: Link<T>,
 }
 
+// wrap the list so we have a place to put the iteration logic
+pub struct IntoIter<T>(List<T>);
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop()
+    }
+}
+
 // something to hold the variation
 type Link<T> = Option<Box<Node<T>>>;
 
@@ -47,6 +58,10 @@ impl<T> List<T> {
             self.head = boxed_node.next;
             boxed_node.element
         })
+    }
+
+    pub fn into_iter(self) -> IntoIter<T> {
+        IntoIter(self)
     }
 }
 
@@ -91,5 +106,17 @@ mod test {
         list.push("there");
         assert_eq!("there", list.pop().unwrap());
         assert_eq!("hi", list.pop().unwrap());
+    }
+
+    #[test]
+    fn iteration() {
+        let mut list = List::new();
+        list.push("hi");
+        list.push("there");
+
+        let mut iterator = list.into_iter();
+        assert_eq!(Some("there"), iterator.next());
+        assert_eq!(Some("hi"), iterator.next());
+        assert_eq!(None, iterator.next());
     }
 }

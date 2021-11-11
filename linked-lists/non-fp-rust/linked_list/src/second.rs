@@ -7,13 +7,31 @@ pub struct List<T> {
 }
 
 // wrap the list so we have a place to put the iteration logic
-pub struct IntoIter<T>(List<T>);
+// confirm: no need for a lifetime since it is moved?
+pub struct ListIntoIter<T>(List<T>);
 
-impl<T> Iterator for IntoIter<T> {
+impl<T> Iterator for ListIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.pop()
+    }
+}
+
+// confirm: we need a lifetime since a reference is used in the creation of the struct?
+pub struct ListIter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+impl<'a, T> Iterator for ListIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.map(|node| {
+            // deref and then unbox
+            self.next = node.next.as_deref().map(|node| &*node);
+            &node.element
+        })
     }
 }
 
@@ -60,8 +78,16 @@ impl<T> List<T> {
         })
     }
 
-    pub fn into_iter(self) -> IntoIter<T> {
-        IntoIter(self)
+    // creates an iterator. The list is moved into the ListIntoIter and is no longer available
+    pub fn into_iter(self) -> ListIntoIter<T> {
+        ListIntoIter(self)
+    }
+
+    // creates an iterator. The list is not consumed. Iterator provides references to the elements
+    pub fn iter(&self) -> ListIter<T> {
+        ListIter {
+            next: self.head.as_deref().map(|node| &*node),
+        }
     }
 }
 
@@ -109,7 +135,7 @@ mod test {
     }
 
     #[test]
-    fn iteration() {
+    fn iteration_into_iter() {
         let mut list = List::new();
         list.push("hi");
         list.push("there");
@@ -118,5 +144,19 @@ mod test {
         assert_eq!(Some("there"), iterator.next());
         assert_eq!(Some("hi"), iterator.next());
         assert_eq!(None, iterator.next());
+    }
+
+    #[test]
+    fn iteration_iter() {
+        let mut list = List::new();
+        list.push("hi");
+        list.push("there");
+
+        let mut iterator = list.iter();
+        assert_eq!(Some(&"there"), iterator.next());
+        assert_eq!(Some(&"hi"), iterator.next());
+        assert_eq!(None, iterator.next());
+
+        assert_eq!(Some("there"), list.pop());
     }
 }

@@ -1,38 +1,11 @@
 // following along with
 // https://rust-unofficial.github.io/too-many-lists/second.html
 
+// ------------------- Core data structure and List API ----------------------------------
+
 // something small to expose publicly
 pub struct List<T> {
     head: Link<T>,
-}
-
-// wrap the list so we have a place to put the iteration logic
-// confirm: no need for a lifetime since it is moved?
-pub struct ListIntoIter<T>(List<T>);
-
-impl<T> Iterator for ListIntoIter<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.pop()
-    }
-}
-
-// confirm: we need a lifetime since a reference is used in the creation of the struct?
-pub struct ListIter<'a, T> {
-    next: Option<&'a Node<T>>,
-}
-
-impl<'a, T> Iterator for ListIter<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next.map(|node| {
-            // deref and then unbox
-            self.next = node.next.as_deref().map(|node| &*node);
-            &node.element
-        })
-    }
 }
 
 // something to hold the variation
@@ -77,12 +50,34 @@ impl<T> List<T> {
             boxed_node.element
         })
     }
+}
 
+// ------------------- iteration over Ts ----------------------------------
+
+// into_iter provides an iterator over Ts after the list is moved into the ListIntoIter
+impl<T> List<T> {
     // creates an iterator. The list is moved into the ListIntoIter and is no longer available
     pub fn into_iter(self) -> ListIntoIter<T> {
         ListIntoIter(self)
     }
+}
 
+// wrap the list so we have a place to put the iteration logic
+// no need for a lifetime since the List is moved into it
+pub struct ListIntoIter<T>(List<T>);
+
+impl<T> Iterator for ListIntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop()
+    }
+}
+
+// ------------------- iteration over references to Ts ----------------------------------
+
+// iter provides an iterator over references to Ts after the ListIter is given a ref to the List
+impl<T> List<T> {
     // creates an iterator. The list is not consumed. Iterator provides references to the elements
     pub fn iter(&self) -> ListIter<T> {
         ListIter {
@@ -91,6 +86,26 @@ impl<T> List<T> {
     }
 }
 
+// we need a lifetime since a reference is used in the creation of the struct
+pub struct ListIter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+impl<'a, T> Iterator for ListIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.map(|node| {
+            // deref and then unbox
+            self.next = node.next.as_deref().map(|node| &*node);
+            &node.element
+        })
+    }
+}
+
+// ------------------- Drop  ----------------------------------
+
+// unpack and drop without copying
 impl<T> Drop for List<T> {
     fn drop(&mut self) {
         let mut popped_link = self.head.take();
@@ -159,4 +174,6 @@ mod test {
 
         assert_eq!(Some("there"), list.pop());
     }
+
+    // TODO: need a way to test that drop doesnt copy
 }

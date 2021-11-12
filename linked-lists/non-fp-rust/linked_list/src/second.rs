@@ -32,14 +32,25 @@ impl<T> List<T> {
     }
 
     pub fn peek_for_nosy_people(&self) -> Option<&T> {
-        // not idiomatic rust, but look what map and the magic dot in node.element did for us!
+        // goal is to avoid the move out of the Box so we need the as_ref
+        // look what map and the magic dot in node.element did for us!
         // Levels of indirection just vanish!
+        // https://doc.rust-lang.org/std/option/
         let boxed_node_option: Option<&Box<Node<T>>> = self.head.as_ref();
-        boxed_node_option.map(|boxed_node: &Box<Node<T>>| &boxed_node.element)
+        boxed_node_option.map(|boxed_node: &Box<Node<T>>| {
+            let ref_to_boxed_node: &Box<Node<T>> = boxed_node;
+            let ref_to_element: &T = &ref_to_boxed_node.element;
+            ref_to_element
+        })
     }
 
+    // idiomatic and dense but same as the nosy version
     pub fn peek(&self) -> Option<&T> {
         self.head.as_ref().map(|boxed_node| &boxed_node.element)
+    }
+
+    pub fn peek_mut(&mut self) -> Option<&mut T> {
+        self.head.as_mut().map(|node| &mut node.element)
     }
 
     pub fn pop(&mut self) -> Option<T> {
@@ -141,6 +152,22 @@ mod test {
     }
 
     #[test]
+    fn mutable_peek() {
+        let mut list = List::new(); // head -> None
+        list.push(1);
+        list.push(2);
+        list.push(3);
+
+        assert_eq!(Some(&3), list.peek());
+        list.peek_mut().map(|mutable_value| {
+            *mutable_value = 33;
+        });
+
+        assert_eq!(Some(&33), list.peek());
+        assert_eq!(Some(33), list.pop());
+    }
+
+    #[test]
     fn another_type() {
         let mut list = List::new();
         list.push("hi");
@@ -175,5 +202,5 @@ mod test {
         assert_eq!(Some("there"), list.pop());
     }
 
-    // TODO: need a way to test that drop doesnt copy
+    // TODO: need a way to test that drop does not copy
 }

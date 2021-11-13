@@ -114,6 +114,35 @@ impl<'a, T> Iterator for ListIter<'a, T> {
     }
 }
 
+// ------------------- iteration over mutable references to Ts ----------------------------------
+
+// create an iterator of mutable references to T given a mutable reference to the List
+// note the use of the anonymous lifetime
+// https://yegeun542.github.io/rust-edition-guide-ko/rust-2018/ownership-and-lifetimes/the-anonymous-lifetime.html
+impl<T> List<T> {
+    pub fn iter_mut(&mut self) -> ListIterMut<'_, T> {
+        ListIterMut {
+            next: self.head.as_deref_mut(),
+        }
+    }
+}
+
+pub struct ListIterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
+}
+
+impl<'a, T> Iterator for ListIterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.take().map(|node| {
+            // deref and then unbox
+            self.next = node.next.as_deref_mut();
+            &mut node.element
+        })
+    }
+}
+
 // ------------------- Drop  ----------------------------------
 
 // unpack and drop without copying
@@ -200,6 +229,19 @@ mod test {
         assert_eq!(None, iterator.next());
 
         assert_eq!(Some("there"), list.pop());
+    }
+
+    #[test]
+    fn iteration_iter_mut() {
+        let mut list = List::new();
+        list.push(1);
+        list.push(2);
+        list.push(3);
+
+        let mut iterator = list.iter_mut();
+        assert_eq!(Some(&mut 3), iterator.next());
+        assert_eq!(Some(&mut 2), iterator.next());
+        assert_eq!(Some(&mut 1), iterator.next());
     }
 
     // TODO: need a way to test that drop does not copy

@@ -43,6 +43,28 @@ impl<T> PersistentList<T> {
     }
 }
 
+pub struct Iter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+impl<T> PersistentList<T> {
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            next: self.head.as_deref(),
+        }
+    }
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.map(|node| {
+            self.next = node.next.as_deref();
+            &node.element
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::PersistentList;
@@ -60,5 +82,14 @@ mod test {
         let list_21 = list_321.tail();
         assert_eq!(list_321.head(), Some(&3));
         assert_eq!(list_21.head(), Some(&2));
+    }
+
+    #[test]
+    fn iteration() {
+        let list = PersistentList::new().prepend(1).prepend(2).prepend(3);
+        let mut iter = list.iter();
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&1));
     }
 }

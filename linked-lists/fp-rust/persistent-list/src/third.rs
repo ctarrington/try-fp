@@ -18,13 +18,21 @@ struct Node<T> {
 
 impl<T> PersistentList<T> {
     pub fn new() -> Self {
-        PersistentList { head: None }
+        Self { head: None }
     }
+}
 
+impl<T> Default for PersistentList<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> PersistentList<T> {
     // returns a List with the new value prepended to the front of the old List
     // the old List still exists
-    pub fn prepend(&self, value: T) -> PersistentList<T> {
-        PersistentList {
+    pub fn prepend(&self, value: T) -> Self {
+        Self {
             head: Some(Rc::new(Node {
                 element: value,
                 next: self.head.clone(),
@@ -32,8 +40,8 @@ impl<T> PersistentList<T> {
         }
     }
 
-    pub fn tail(&self) -> PersistentList<T> {
-        PersistentList {
+    pub fn tail(&self) -> Self {
+        Self {
             head: self.head.as_ref().and_then(|node| node.next.clone()),
         }
     }
@@ -42,6 +50,8 @@ impl<T> PersistentList<T> {
         self.head.as_ref().map(|node| &node.element)
     }
 }
+
+// ------------------- iteration over references to Ts ----------------------------------
 
 pub struct Iter<'a, T> {
     next: Option<&'a Node<T>>,
@@ -62,6 +72,21 @@ impl<'a, T> Iterator for Iter<'a, T> {
             self.next = node.next.as_deref();
             &node.element
         })
+    }
+}
+
+// ------------------- drop ----------------------------------
+
+impl<T> Drop for PersistentList<T> {
+    fn drop(&mut self) {
+        let mut head = self.head.take();
+        while let Some(node) = head {
+            if let Ok(mut node) = Rc::try_unwrap(node) {
+                head = node.next.take();
+            } else {
+                break;
+            }
+        }
     }
 }
 
@@ -91,5 +116,33 @@ mod test {
         assert_eq!(iter.next(), Some(&3));
         assert_eq!(iter.next(), Some(&2));
         assert_eq!(iter.next(), Some(&1));
+    }
+
+    #[test]
+    fn drop() {
+        struct Thing {
+            value: i32,
+        }
+
+        impl Drop for Thing {
+            fn drop(&mut self) {
+                println!("dropping {} ", self.value);
+            }
+        }
+
+        let list_1: PersistentList<Thing> = PersistentList::default().prepend(Thing { value: 1 });
+        assert_eq!(list_1.head().map(|thing| thing.value), Some(1));
+
+        {
+            let list_321 = list_1
+                .prepend(Thing { value: 2 })
+                .prepend(Thing { value: 3 });
+            assert_eq!(list_321.head().map(|thing| thing.value), Some(3));
+            println!("done with list_321");
+        }
+
+        println!("still using list_1");
+        assert_eq!(list_1.head().map(|thing| thing.value), Some(1));
+        println!("done with list_1");
     }
 }

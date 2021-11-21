@@ -35,14 +35,17 @@ impl<T> PersistentList<T> {
         Self {
             head: Some(Rc::new(Node {
                 element: value,
-                next: self.head.clone(),
+                next: self.head.as_ref().map(|rc_node| Rc::clone(&rc_node)), // use Rc::clone to make it explicit that we are only bumping the reference count
             })),
         }
     }
 
     pub fn tail(&self) -> Self {
         Self {
-            head: self.head.as_ref().and_then(|node| node.next.clone()),
+            head: self
+                .head
+                .as_ref()
+                .and_then(|node| node.next.as_ref().map(|rc_node| Rc::clone(&rc_node))),
         }
     }
 

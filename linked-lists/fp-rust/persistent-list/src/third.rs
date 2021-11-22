@@ -101,6 +101,7 @@ mod test {
     fn simple() {
         let empty_list = PersistentList::new();
         assert_eq!(empty_list.head(), None);
+        assert_eq!(empty_list.tail().head(), None);
 
         let list_1 = empty_list.prepend(1);
         assert_eq!(empty_list.head(), None);
@@ -114,11 +115,26 @@ mod test {
 
     #[test]
     fn iteration() {
+        let empty_list: PersistentList<i32> = PersistentList::new();
+        let mut iter = empty_list.iter();
+        assert_eq!(iter.next(), None);
+
         let list = PersistentList::new().prepend(1).prepend(2).prepend(3);
         let mut iter = list.iter();
         assert_eq!(iter.next(), Some(&3));
         assert_eq!(iter.next(), Some(&2));
         assert_eq!(iter.next(), Some(&1));
+
+        let list_421 = list.tail().prepend(4);
+        let mut iter_321 = list.iter();
+        let mut iter_421 = list_421.iter();
+        assert_eq!(iter_321.next(), Some(&3));
+        assert_eq!(iter_321.next(), Some(&2));
+        assert_eq!(iter_321.next(), Some(&1));
+
+        assert_eq!(iter_421.next(), Some(&4));
+        assert_eq!(iter_421.next(), Some(&2));
+        assert_eq!(iter_421.next(), Some(&1));
     }
 
     #[test]

@@ -2,6 +2,7 @@
 // https://rust-unofficial.github.io/too-many-lists/third.html
 
 use std::rc::Rc;
+
 // ------------------- Core data structure and List API ----------------------------------
 
 // something small to expose publicly
@@ -96,6 +97,7 @@ impl<T> Drop for PersistentList<T> {
 #[cfg(test)]
 mod test {
     use super::PersistentList;
+    use std::cell::RefCell;
 
     #[test]
     fn simple() {
@@ -139,29 +141,64 @@ mod test {
 
     #[test]
     fn drop() {
-        struct Thing {
-            value: i32,
+        struct Watcher {
+            events: RefCell<Vec<String>>,
         }
 
-        impl Drop for Thing {
-            fn drop(&mut self) {
-                println!("dropping {} ", self.value);
+        impl Watcher {
+            fn new() -> Self {
+                Self {
+                    events: RefCell::new(vec![]),
+                }
+            }
+
+            fn push(&self, value: String) {
+                self.events.borrow_mut().push(value);
+            }
+
+            fn list(&self) -> String {
+                self.events.borrow().join(",")
             }
         }
 
-        let list_1: PersistentList<Thing> = PersistentList::default().prepend(Thing { value: 1 });
-        assert_eq!(list_1.head().map(|thing| thing.value), Some(1));
-
-        {
-            let list_321 = list_1
-                .prepend(Thing { value: 2 })
-                .prepend(Thing { value: 3 });
-            assert_eq!(list_321.head().map(|thing| thing.value), Some(3));
-            println!("done with list_321");
+        struct Thing<'a> {
+            value: i32,
+            watcher: &'a Watcher,
         }
 
-        println!("still using list_1");
-        assert_eq!(list_1.head().map(|thing| thing.value), Some(1));
-        println!("done with list_1");
+        impl<'a> Drop for Thing<'a> {
+            fn drop(&mut self) {
+                self.watcher.push(format!("dropping {} ", self.value));
+            }
+        }
+
+        let watcher = Watcher::new();
+
+        {
+            let list_1: PersistentList<Thing> = PersistentList::default().prepend(Thing {
+                value: 1,
+                watcher: &watcher,
+            });
+            assert_eq!(list_1.head().map(|thing| thing.value), Some(1));
+
+            {
+                let list_321 = list_1
+                    .prepend(Thing {
+                        value: 2,
+                        watcher: &watcher,
+                    })
+                    .prepend(Thing {
+                        value: 3,
+                        watcher: &watcher,
+                    });
+                assert_eq!(list_321.head().map(|thing| thing.value), Some(3));
+                watcher.push("done with list_321".to_string());
+            }
+
+            watcher.push("still using list_1".to_string());
+            assert_eq!(list_1.head().map(|thing| thing.value), Some(1));
+            watcher.push("done with list_1".to_string());
+        }
+        assert_eq!(watcher.list(), "done with list_321,dropping 3 ,dropping 2 ,still using list_1,done with list_1,dropping 1 ".to_string());
     }
 }
